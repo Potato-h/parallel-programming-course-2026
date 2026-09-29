@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.stream.LongStream;
 
 public final class Utils {
@@ -34,11 +35,11 @@ public final class Utils {
         } catch (InterruptedException ignored) {}
     }
 
-    private static long runBenchmark(
+    private static <T> BenchmarkResult<T> runBenchmark(
         MetricsCollector collector,
         long[] values,
         int nThreads,
-        int seconds
+        Supplier<T> body
     ) {
         var start = new CountDownLatch(1);
         var stop = new AtomicBoolean(false);
@@ -70,7 +71,7 @@ public final class Utils {
 
         var t0 = System.currentTimeMillis();
         start.countDown();
-        ignoreInterrupt(() -> Thread.sleep(Duration.ofSeconds(seconds)));
+        var payload = body.get();
         stop.set(true);
         var t1 = System.currentTimeMillis();
 
@@ -79,18 +80,82 @@ public final class Utils {
         }
 
         var passed = (t1 - t0) / 1000.0;
-        return (long)(LongStream.of(ops).sum() / passed);
+        var totalOps = LongStream.of(ops).sum();
+        var finalCount = collector.snapshot().count();
+        return new BenchmarkResult<>(
+            (long)(totalOps / passed),
+            payload,
+            finalCount,
+            totalOps
+        );
+    }
+
+    private static Supplier<Integer> sleepBody(int secs) {
+        return () -> {
+            ignoreInterrupt(() -> Thread.sleep(Duration.ofSeconds(secs)));
+            return secs;
+        };
     }
 
     public static long measurePoint(MetricsCollector collector, long[] values, int nThreads) {
-        runBenchmark(collector, values, nThreads, 5);
+        runBenchmark(collector, values, nThreads, sleepBody(5));
         var results = new ArrayList<Long>();
         var runs = 5;
         for (int i = 0; i < runs; i++) {
-            results.add(runBenchmark(collector, values, nThreads, 5));
+            var result = runBenchmark(collector, values, nThreads, sleepBody(5));
+            results.add(result.opsPerSec);
         }
         System.out.printf("Total count: %d\n", collector.snapshot().count());
         var measurements = results.stream().sorted().toList();
         return measurements.get(runs / 2);
     }
+
+    public static BenchmarkResult<TestResult> testCollector(MetricsCollector collector, long[] values, int nThreads) {
+        runBenchmark(collector, values, nThreads, sleepBody(3));
+
+        return runBenchmark(collector, values, nThreads, () -> {
+           var total = 10_000;
+           var less = 0L;
+           var greater = 0L;
+
+           for (var i = 0; i < total; i++) {
+               var snapshot = collector.snapshot();
+               var actualCount = LongStream.of(snapshot.buckets()).sum();
+               if (snapshot.count() < actualCount) {
+                   less++;
+               }
+               if (snapshot.count() > actualCount) {
+                   greater++;
+               }
+           }
+
+           return new TestResult(total, less, greater);
+        });
+    }
+
+    public static String testResume(BenchmarkResult<TestResult> result) {
+        var test = result.payload;
+
+        return String.format(
+            "broken snapshots: %.02f%%, count less than buckets: %d, count more than buckets: %d, final count: %d, actual ops: %d",
+            (test.greater + test.less) * 100.0f / test.total,
+            test.less,
+            test.greater,
+            result.finalCount,
+            result.allOps
+        );
+    }
+
+    public record BenchmarkResult<T>(
+        long opsPerSec,
+        T payload,
+        long finalCount,
+        long allOps
+    ) {}
+
+    public record TestResult(
+        long total,
+        long less,
+        long greater
+    ) {}
 }

@@ -1,5 +1,6 @@
 package org.collector;
 
+import java.util.Arrays;
 import java.util.Random;
 
 public final class Sampler {
@@ -31,18 +32,7 @@ public final class Sampler {
     }
 
     private static long sample(double u) {
-        var lo = MIN;
-        var hi = MAX;
-
-        while (lo < hi) {
-            var mid = (lo + hi) / 2;
-            if (CDF[mid] < u) {
-                lo = mid + 1;
-            } else {
-                hi = mid;
-            }
-        }
-
-        return lo;
+        var pos = Arrays.binarySearch(CDF, u);
+        return pos >= 0 ? pos : -pos - 1;
     }
 }
