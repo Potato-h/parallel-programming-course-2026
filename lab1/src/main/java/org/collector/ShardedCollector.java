@@ -2,7 +2,6 @@ package org.collector;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.LongStream;
 
 public class ShardedCollector implements MetricsCollector {
     private static final int BUCKETS_NUM = 256;
@@ -11,6 +10,7 @@ public class ShardedCollector implements MetricsCollector {
 
     private final long[] buckets;
     private final Object[] shards;
+    private final AtomicLong count;
     private final AtomicLong sum;
     private final AtomicLong min;
     private final AtomicLong max;
@@ -19,6 +19,7 @@ public class ShardedCollector implements MetricsCollector {
         this.buckets = new long[BUCKETS_NUM];
         this.shards = new Object[SHARDS_NUM];
         Arrays.setAll(shards, ignored -> new Object());
+        this.count = new AtomicLong(0);
         this.sum = new AtomicLong(0);
         this.min = new AtomicLong(Long.MAX_VALUE);
         this.max = new AtomicLong(Long.MIN_VALUE);
@@ -31,6 +32,7 @@ public class ShardedCollector implements MetricsCollector {
             buckets[bucket]++;
         }
 
+        count.addAndGet(1);
         sum.addAndGet(value);
 
         long minValue;
@@ -57,7 +59,7 @@ public class ShardedCollector implements MetricsCollector {
 
         return new Snapshot(
             bucketsCopy,
-            LongStream.of(bucketsCopy).sum(),
+            count.get(),
             sum.get(),
             min.get(),
             max.get(),

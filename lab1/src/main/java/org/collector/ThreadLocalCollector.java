@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
-import java.util.stream.LongStream;
 
 public class ThreadLocalCollector implements MetricsCollector {
     private static final int BUCKETS_NUM = 256;
@@ -27,6 +26,7 @@ public class ThreadLocalCollector implements MetricsCollector {
         var state = this.state.get();
         var bucket = (int)Math.min(value, BUCKETS_NUM - 1);
         state.buckets.setRelease(bucket, state.buckets.getPlain(bucket) + 1);
+        state.count.setRelease(state.count.getPlain() + 1);
         state.sum.setRelease(state.sum.getPlain() + value);
 
         if (state.min.getPlain() > value) {
@@ -46,6 +46,7 @@ public class ThreadLocalCollector implements MetricsCollector {
         }
 
         var buckets = new long[BUCKETS_NUM];
+        var count = 0L;
         var sum = 0L;
         var min = Long.MAX_VALUE;
         var max = Long.MIN_VALUE;
@@ -54,6 +55,7 @@ public class ThreadLocalCollector implements MetricsCollector {
                 buckets[i] += state.buckets.get(i);
             }
 
+            count += state.count.get();
             sum += state.sum.get();
             min = Math.min(min, state.min.get());
             max = Math.max(max, state.max.get());
@@ -62,7 +64,7 @@ public class ThreadLocalCollector implements MetricsCollector {
 
         return new Snapshot(
             buckets,
-            LongStream.of(buckets).sum(),
+            count,
             sum,
             min,
             max,
