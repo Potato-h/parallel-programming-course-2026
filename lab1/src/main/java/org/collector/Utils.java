@@ -41,6 +41,7 @@ public final class Utils {
         int nThreads,
         Supplier<T> body
     ) {
+        var startedCount = collector.snapshot().count();
         var start = new CountDownLatch(1);
         var stop = new AtomicBoolean(false);
         var ops = new long[nThreads];
@@ -85,7 +86,7 @@ public final class Utils {
         return new BenchmarkResult<>(
             (long)(totalOps / passed),
             payload,
-            finalCount,
+            finalCount - startedCount,
             totalOps
         );
     }
