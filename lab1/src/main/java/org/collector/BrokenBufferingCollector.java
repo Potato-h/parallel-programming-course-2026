@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class BufferingCollector implements MetricsCollector {
+public class BrokenBufferingCollector implements MetricsCollector {
     private static final int BUCKETS_NUM = 256;
     private static final int NOWHERE = -1;
 
@@ -20,7 +20,7 @@ public class BufferingCollector implements MetricsCollector {
     private long min;
     private long max;
 
-    public BufferingCollector() {
+    public BrokenBufferingCollector() {
         this.buckets = new long[BUCKETS_NUM];
         this.count = 0;
         this.sum = 0;
@@ -39,16 +39,8 @@ public class BufferingCollector implements MetricsCollector {
     @Override
     public void record(long value) {
         var state = this.state.get();
-        int writeTo;
-
-        while (true) {
-            writeTo = active.get();
-            state.inside.setRelease(writeTo);
-            if (active.get() == writeTo) {
-                break;
-            }
-            state.inside.setRelease(NOWHERE);
-        }
+        var writeTo = active.get();
+        state.inside.setRelease(writeTo);
 
         var bucket = (int)Math.min(value / 4, BUCKETS_NUM - 1);
         state.buckets[writeTo][bucket]++;
