@@ -90,13 +90,13 @@ public class BufferingCollector implements MetricsCollector {
 
             var bucketsCopy = Arrays.copyOf(buckets, BUCKETS_NUM);
             return new Snapshot(
-                    bucketsCopy,
-                    count,
-                    sum,
-                    min,
-                    max,
-                    Utils.percentile(bucketsCopy, 0.5),
-                    Utils.percentile(bucketsCopy, 0.99)
+                bucketsCopy,
+                count,
+                sum,
+                min,
+                max,
+                Utils.percentile(bucketsCopy, 0.5),
+                Utils.percentile(bucketsCopy, 0.99)
             );
         }
 
