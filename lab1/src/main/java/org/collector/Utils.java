@@ -115,7 +115,7 @@ public final class Utils {
         runBenchmark(collector, values, nThreads, sleepBody(3));
 
         return runBenchmark(collector, values, nThreads, () -> {
-           var total = 10_000;
+           var total = 1_000_000;
            var less = 0L;
            var greater = 0L;
 
