@@ -2,6 +2,7 @@ package org.collector;
 
 import java.util.Arrays;
 import java.util.Random;
+import java.util.stream.LongStream;
 
 public final class Sampler {
     private static final int MIN = 1;
@@ -24,11 +25,7 @@ public final class Sampler {
 
     public static long[] generate(int n, long seed) {
         var rng = new Random(seed);
-        var result = new long[n];
-        for (var i = 0; i < n; i++) {
-            result[i] = sample(rng.nextDouble());
-        }
-        return result;
+        return LongStream.generate(() -> sample(rng.nextDouble())).limit(n).toArray();
     }
 
     private static long sample(double u) {
