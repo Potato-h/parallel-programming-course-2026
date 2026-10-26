@@ -29,8 +29,7 @@ public final class Scheduler {
 
     /** Зарегистрировать поток. Потоки получают буквы A, B, C… в порядке вызова spawn. */
     public void spawn(Runnable body) {
-        var threadSem = new Semaphore(1);
-        threadSem.acquireUninterruptibly();
+        var threadSem = new Semaphore(0);
         var threadId = threads.size();
         var state = new ThreadState(
             new Thread(() -> {
@@ -88,20 +87,23 @@ public final class Scheduler {
         var scheduler = schedulerRef.scheduler;
         var state = scheduler.threads.get(schedulerRef.threadId);
         
-        if (state.toPause) {
-            state.toPause = false;
+        if (!state.firstPause) {
+            state.firstPause = false;
             state.status = status;
             scheduler.schedule.release();
+
+            if (status instanceof Finished) {
+                return;
+            }
             state.semaphore.acquireUninterruptibly();
         }
 
-        state.toPause = true;
+        state.firstPause = false;
     }
 
     /** window() из тестовых программ: пауза перед следующей операцией с общими данными обязательна. */
     public static void point() {
         addLog("window");
-        LOCAL.get().scheduler.threads.get(LOCAL.get().threadId).toPause = true;
     }
 
     /** Ждать, пока cond не станет true. До этого поток не попадает в enabled. */
@@ -126,14 +128,14 @@ public final class Scheduler {
         char name;
         Semaphore semaphore;
         Status status;
-        boolean toPause;
+        boolean firstPause;
     
         ThreadState(Thread thread, char name, Semaphore semaphore, Status status) {
             this.thread = thread;
             this.name = name;
             this.semaphore = semaphore;
             this.status = status;
-            this.toPause = false;
+            this.firstPause = true;
         }
     }
     
