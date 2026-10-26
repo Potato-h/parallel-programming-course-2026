@@ -3,6 +3,7 @@ package lab2;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 /* Стратегии выбора следующего потока.
  * FirstAlive — этап 1, Replay — этап 2, RandomPick — этап 3, Dfs — этап 4 (ограничение bound — этап 5).
@@ -60,13 +61,18 @@ public final class Strategies {
      *  bound — максимум вытеснений (этап 5); для dfs runner передаёт Integer.MAX_VALUE. */
     public static final class Dfs implements Strategy {
         private final ArrayList<Decision> path = new ArrayList<>();
-        private int position;
-        
-        public Dfs(int bound) {}
+        private int position = 0;
+        private int switches = 0;
+        private final int bound; 
+
+        public Dfs(int bound) {
+            this.bound = bound;
+        }
         
         /** Подготовиться к новому прогону (позиция в пути, счётчик вытеснений). */
         public void beginRun() { 
-            position = 0; 
+            position = 0;
+            switches = 0; 
         }
         
         public int pick(List<Integer> enabled, int last) {
@@ -74,8 +80,22 @@ public final class Strategies {
             if (position < path.size()) {
                 chosen = enabled.get(path.get(position).chosenPosition);
             } else {
-                path.add(new Decision(enabled.size(), 0));
-                chosen = enabled.get(0);
+                // Если достигли лимита вытеснений, то берем последний поток, но
+                // если он закончил работу или недоступен, то первый попавшийся
+                var idx = enabled.indexOf(last);
+                if (switches == bound && idx >= 0) {
+                    path.add(new Decision(List.of(idx), idx));
+                } else {
+                    idx = 0;
+                    var options = IntStream.range(0, enabled.size()).mapToObj(Integer::valueOf).toList();
+                    path.add(new Decision(options, idx));
+                }
+                
+                chosen = enabled.get(idx);
+            }
+
+            if (last != chosen && enabled.contains(last)) {
+                switches++;
             }
 
             position++;
@@ -85,19 +105,23 @@ public final class Strategies {
         /** Выбрать следующий путь; false — дерево обойдено. */
         public boolean endRun() {
             while (path.size() > 0) {
-                var nextIdx = path.getLast().chosenPosition + 1;
+                var chosen = path.getLast().chosenPosition;
                 var options = path.getLast().options;
-                if (nextIdx < options) {
-                    path.set(path.size() - 1, new Decision(options, nextIdx));
-                    return true;
-                } else {
-                    path.removeLast();
+                // Выбираем доступный индекс в массиве enabled при условии
+                // ограничений на количество переключений
+                for (var option : options) {
+                    if (option > chosen) {
+                        path.set(path.size() - 1, new Decision(options, option));
+                        return true;
+                    }
                 }
+                    
+                path.removeLast();
             }
 
             return false;
         }
         
-        private record Decision(int options, int chosenPosition) { }
+        private record Decision(List<Integer> options, int chosenPosition) { }
     }
 }
