@@ -1,5 +1,6 @@
 package lab2;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -58,18 +59,45 @@ public final class Strategies {
     /** Stateless DFS по дереву выборов: каждый прогон с нуля, повторяет префикс прошлого и берёт следующий вариант.
      *  bound — максимум вытеснений (этап 5); для dfs runner передаёт Integer.MAX_VALUE. */
     public static final class Dfs implements Strategy {
-        public Dfs(int bound) { }
-
+        private final ArrayList<Decision> path = new ArrayList<>();
+        private int position;
+        
+        public Dfs(int bound) {}
+        
         /** Подготовиться к новому прогону (позиция в пути, счётчик вытеснений). */
-        public void beginRun() { }
-
-        public int pick(List<Integer> enabled, int last) {
-            throw new UnsupportedOperationException("TODO этап 4: Dfs.pick");
+        public void beginRun() { 
+            position = 0; 
         }
+        
+        public int pick(List<Integer> enabled, int last) {
+            int chosen;
+            if (position < path.size()) {
+                chosen = enabled.get(path.get(position).chosenPosition);
+            } else {
+                path.add(new Decision(enabled.size(), 0));
+                chosen = enabled.get(0);
+            }
 
+            position++;
+            return chosen;
+        }
+        
         /** Выбрать следующий путь; false — дерево обойдено. */
         public boolean endRun() {
-            throw new UnsupportedOperationException("TODO этап 4: Dfs.endRun");
+            while (path.size() > 0) {
+                var nextIdx = path.getLast().chosenPosition + 1;
+                var options = path.getLast().options;
+                if (nextIdx < options) {
+                    path.set(path.size() - 1, new Decision(options, nextIdx));
+                    return true;
+                } else {
+                    path.removeLast();
+                }
+            }
+
+            return false;
         }
+        
+        private record Decision(int options, int chosenPosition) { }
     }
 }
