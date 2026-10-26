@@ -697,21 +697,22 @@ mode=volatile samples=2,000,000
 
 | Программа | Расписаний | Ошибок | Первая ошибочная трасса | Почему DFS видит / не видит баг |
 |---|---|---|---|---|
-| `collector-nostep3-1x1` | | | | |
-| `collector-plain-1x1` | | | | |
-| `collector-acqrel-1x1` | | | | |
-| `collector-ok-1x1` | | | | |
+| `collector-nostep3-1x1` | 106 | 12 | ABBBAABAAB | Работа через shared |
+| `collector-plain-1x1` | 29 | 0 | | Переменные не за shared |
+| `collector-acqrel-1x1` | 636 | 0 | | Выполнение задает полный порядок между операциями, когда ошибка возникает когда этот порядок частичный |
+| `collector-ok-1x1` | 636 | 0 | | Действительно нет ошибок |
 
 #### Рост пространства состояний в 6б
 | Программа | Стратегия | Расписаний | Ошибок | Время |
 |---|---|---|---|---|
-| `collector-nostep3-1x2` | `dfs` | | | |
-| `collector-nostep3-1x3` | `dfs` | | | |
-| `collector-nostep3-1x4` | `dfs` | | | |
-| `collector-nostep3-2x1` | `bounded 0` | | | |
-| `collector-nostep3-2x1` | `bounded 1` | | | |
-| `collector-nostep3-2x1` | `bounded 2` | | | |
-| `collector-nostep3-2x1` | `bounded 3` | | | |
+| `collector-nostep3-1x2` | `dfs` | 1666 | 105 | 0.37 s |
+| `collector-nostep3-1x3` | `dfs` | 9931 | 348 | 1.87 s |
+| `collector-nostep3-1x4` | `dfs` | 37151 | 816 | 7.68 s |
+| `collector-nostep3-2x1` | `bounded 0` | 6 | 0 | 0.04 s |
+| `collector-nostep3-2x1` | `bounded 1` | 102 | 0 | 0.08 s |
+| `collector-nostep3-2x1` | `bounded 2` | 945 | 10 | 0.30 s |
+| `collector-nostep3-2x1` | `bounded 3` | 5814 | 108 | 1.23 s |
+
 
 ### 4. Результаты этапа 7 (Store Buffering)
 
