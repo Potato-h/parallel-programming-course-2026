@@ -82,7 +82,7 @@ public final class Scheduler {
                     })
                     .sorted(Comparator.comparing(lock -> lock.name))
                     .map(lock -> String.format("%s:%s", lock.name, threads.get(lock.owner).name))
-                    .collect(Collectors.joining(","));
+                    .collect(Collectors.joining(", "));
                 
                 if (!lockStatus.isBlank()) {
                     deadlock = String.format("held={%s}", lockStatus);
