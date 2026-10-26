@@ -655,7 +655,24 @@ mode=volatile samples=2,000,000
 #### Этап 3: Random
 | Программа | seed'ов | Ошибок (%) | Первая ошибочная трасса | Повтор |
 |---|---|---|---|---|
-| `withdraw-v1` | 1000 | | | |
+| `withdraw-v1` | 1000 | 74.7% | BBAABBAA | 10 |
+
+2. Поток `B` cписал после того, как `A` проверил, но не списал. 
+  ```
+  ./lab2 withdraw-v1 replay BBAABBAA log
+  B lock mu
+  B unlock mu
+  B window
+  A lock mu
+  A unlock mu
+  A window
+  B lock mu
+  B unlock mu
+  A lock mu
+  A unlock mu
+  ```
+
+3. Выбор трассы детерменирован от сида
 
 #### Этап 4: DFS
 | Программа | Расписаний | Ошибок | Первая ошибочная трасса | Почему программа на ней ломается |
