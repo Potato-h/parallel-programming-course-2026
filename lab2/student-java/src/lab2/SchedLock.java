@@ -17,9 +17,7 @@ public final class SchedLock {
 
     /** Пауза; если лок занят — ждать, не участвуя в выборе; затем стать владельцем. */
     public void lock() {
-        if (owner != -1) { 
-            Scheduler.turn(new Scheduler.WaitingLock(this));
-        }
+        Scheduler.turn(new Scheduler.WaitingLock(this));
         owner = Scheduler.LOCAL.get().threadId();
         Scheduler.addLog("lock " + name);
     }

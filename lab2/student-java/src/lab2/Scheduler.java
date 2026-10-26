@@ -1,6 +1,7 @@
 package lab2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
@@ -39,9 +40,12 @@ public final class Scheduler {
         var state = new ThreadState(
             new Thread(() -> {
                 LOCAL.set(new SchedulerRef(this, threadId));
-                threadSem.acquireUninterruptibly();
-                body.run();
-                turn(new Finished());
+                
+                try {
+                    threadSem.acquire();
+                    body.run();
+                    turn(new Finished());
+                } catch (Throwable ignored) {}
             }),
             (char)('A' + threadId),
             threadSem,
@@ -76,12 +80,18 @@ public final class Scheduler {
                         case WaitingLock(var lock) when lock.owner != -1 -> Stream.of(lock);
                         default -> Stream.empty();
                     })
+                    .sorted(Comparator.comparing(lock -> lock.name))
                     .map(lock -> String.format("%s:%s", lock.name, threads.get(lock.owner).name))
                     .collect(Collectors.joining(","));
                 
                 if (!lockStatus.isBlank()) {
                     deadlock = String.format("held={%s}", lockStatus);
-                    // TODO: wakeup threads
+                    
+                    for (var thread : threads) {
+                        if (!(thread.status instanceof Finished)) {
+                            thread.thread.interrupt();
+                        }
+                    }
                 }
 
                 break;
@@ -113,7 +123,12 @@ public final class Scheduler {
             if (status instanceof Finished) {
                 return;
             }
-            state.semaphore.acquireUninterruptibly();
+
+            try {
+                state.semaphore.acquire();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         state.firstPause = false;
