@@ -2,9 +2,12 @@ package lab2;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /* Этап 1: планировщик, который ведёт настоящие потоки строго по одному (передача хода через семафоры).
  * Этап 2: обнаружение deadlock в главном цикле и корректное завершение застрявших потоков.
@@ -22,6 +25,8 @@ public final class Scheduler {
     final Semaphore schedule = new Semaphore(1);
 
     final ArrayList<ThreadState> threads = new ArrayList<>();
+
+    final ArrayList<SchedLock> locks = new ArrayList<>();
 
     static final ThreadLocal<SchedulerRef> LOCAL = new ThreadLocal<>();
 
@@ -59,12 +64,26 @@ public final class Scheduler {
                 .filter(threadId -> switch (threads.get(threadId).status) {
                     case Finished() -> false;
                     case Paused() -> true;
+                    case WaitingLock(var lock) -> lock.owner == -1;
                     case Awaiting(var cond) -> cond.getAsBoolean();
                 })
                 .mapToObj(Integer::valueOf)
                 .toList();   
 
             if (enabled.isEmpty()) {
+                var lockStatus = threads.stream()
+                    .flatMap(thread -> switch (thread.status) {
+                        case WaitingLock(var lock) when lock.owner != -1 -> Stream.of(lock);
+                        default -> Stream.empty();
+                    })
+                    .map(lock -> String.format("%s:%s", lock.name, threads.get(lock.owner).name))
+                    .collect(Collectors.joining(","));
+                
+                if (!lockStatus.isBlank()) {
+                    deadlock = String.format("held={%s}", lockStatus);
+                    // TODO: wakeup threads
+                }
+
                 break;
             }
 
@@ -88,7 +107,6 @@ public final class Scheduler {
         var state = scheduler.threads.get(schedulerRef.threadId);
         
         if (!state.firstPause) {
-            state.firstPause = false;
             state.status = status;
             scheduler.schedule.release();
 
@@ -139,10 +157,11 @@ public final class Scheduler {
         }
     }
     
-    sealed interface Status permits Finished, Paused, Awaiting 
+    sealed interface Status permits Finished, Paused, WaitingLock, Awaiting 
     {}
     
     record Finished() implements Status {}
     record Paused() implements Status {}
+    record WaitingLock(SchedLock lock) implements Status {}
     record Awaiting(BooleanSupplier cond) implements Status {} 
 }
